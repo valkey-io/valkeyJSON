@@ -1,0 +1,31 @@
+# IDE files
+.idea/
+*.vscode
+.vscode/*
+
+# Build temp files
+*build
+cmake-build-*/
+
+# Auto-generated files
+**/__pycache__/*
+test-data
+*.pyc
+*.bin
+*.o
+*.xo
+*.so
+*.d
+*.a
+*.log
+*.out
+
+# Others
+.DS_Store
+.attach_pid*
+venv/
+core.*
+valkeytests
+**/include
+**/report.html
+**/assets
