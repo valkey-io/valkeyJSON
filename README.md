@@ -12,11 +12,11 @@ While Valkey core lacks native JSON support, there's significant community deman
 #### To build the module and run tests
 ```text
 # Builds the valkey-server (unstable) for integration testing.
-SERVER_VERSION=unstable
+export SERVER_VERSION=unstable
 ./build.sh
 
 # Builds the valkey-server (8.0.0) for integration testing.
-SERVER_VERSION=8.0.0
+export SERVER_VERSION=8.0.0
 ./build.sh
 ```
 

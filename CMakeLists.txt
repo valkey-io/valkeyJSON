@@ -26,7 +26,7 @@ set(JSON_MODULE_LIB json)
 
 # Define the Valkey directories
 set(VALKEY_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/_deps/valkey-src")
-set(VALKEY_BIN_DIR "${CMAKE_BINARY_DIR}/_deps/valkey-src/src/valkey/bin")
+set(VALKEY_BIN_DIR "${CMAKE_BINARY_DIR}/_deps/valkey-src/src/valkey/src")
 
 # Download and build Valkey
 ExternalProject_Add(
@@ -34,7 +34,8 @@ ExternalProject_Add(
     GIT_REPOSITORY https://github.com/valkey-io/valkey.git  # Replace with actual URL
     GIT_TAG ${VALKEY_VERSION}
     PREFIX ${VALKEY_DOWNLOAD_DIR}
-    BUILD_COMMAND make -j
+    CONFIGURE_COMMAND ""
+    BUILD_COMMAND make distclean && make -j
     INSTALL_COMMAND ""
     BUILD_IN_SOURCE 1
 )

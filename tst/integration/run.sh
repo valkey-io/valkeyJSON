@@ -12,8 +12,8 @@ pkill -9 -f "valkey-benchmark" || true
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "${DIR}"
 
-export MODULE_PATH=$2/build/src/libjson.so \
-export SERVER_VERSION="unstable"
+export MODULE_PATH=$2/build/src/libjson.so 
+echo "Running integration tests against Valkey version: $SERVER_VERSION"
 
 if [[ ! -z "${TEST_PATTERN}" ]] ; then
     export TEST_PATTERN="-k ${TEST_PATTERN}"
