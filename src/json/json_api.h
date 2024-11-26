@@ -1,5 +1,5 @@
 /**
- * JSON C API for Search Module
+ * JSON C API
  */
 #ifndef VALKEYJSONMODULE_JSON_API_H_
 #define VALKEYJSONMODULE_JSON_API_H_
