@@ -1,8 +1,6 @@
-name: ci
+name: CI
 
-on:
-  push:
-  pull_request:
+on: [push, pull_request]
 
 jobs:
   build-ubuntu-latest:
