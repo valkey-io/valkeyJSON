@@ -115,8 +115,8 @@ set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 # Always include debug symbols and optimize the code
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O2 -g")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O2 -g")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -O3 -g -fno-omit-frame-pointer")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3 -g -fno-omit-frame-pointer")
 
 # RapidJSON SIMD optimization
 if("${ARCHITECTURE}" STREQUAL "x86_64")
@@ -150,10 +150,8 @@ set(RAPIDJSON_BUILD_DOC OFF CACHE BOOL "Build rapidjson documentation" FORCE)
 # Make Rapidjson available
 FetchContent_MakeAvailable(rapidjson)
 
-# Add the src subdirectory for building
 add_subdirectory(src)
 
-# Add the src subdirectory for building
 add_subdirectory(tst)
 
 add_custom_target(test

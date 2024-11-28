@@ -3,8 +3,6 @@
  * 1. Core metrics:
  *    json_total_memory_bytes: total memory allocated to JSON objects
  *    json_num_documents: number of document keys in Valkey
- *    json_num_reads: number of reads
- *    json_num_writes: number of writes
  * 2. Histograms:
  *    json_doc_histogram: static histogram showing document size distribution. Value of the i_th element is
  *        number of documents whose size fall into bucket i.

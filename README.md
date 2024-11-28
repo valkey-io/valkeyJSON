@@ -4,9 +4,6 @@ ValkeyJSON is a C++ Valkey-Module that provides native JSON (JavaScript Object N
 
 ValkeyJSON leverages [RapidJSON](https://rapidjson.org/), a high-performance JSON parser and generator for C++, chosen for its small footprint and exceptional performance and memory efficiency. As a header-only library with no external dependencies, RapidJSON provides robust Unicode support while maintaining a compact memory profile of just 16 bytes per JSON value on most 32/64-bit machines.
 
-## Motivation
-While Valkey core lacks native JSON support, there's significant community demand for JSON capabilities. ValkeyJSON provides a comprehensive open-source solution with extensive JSON manipulation features.
-
 ## Building and Testing
 
 #### To build the module and run tests

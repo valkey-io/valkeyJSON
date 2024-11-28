@@ -8,16 +8,15 @@
  * 4. register commands that are all prefixed with "JSON.".
  *
  * Design Considerations:
- * 1. Command API: see API.md.
- * 2. All JSON CRUD operations should be delegated to the DOM module.
- * 3. Shared utility/helper code should reside in the UTIL module.
- * 4. When invoking a DOM or UTIL method tha returns a heap-allocated object, the caller must release the memory
+ * 1. All JSON CRUD operations should be delegated to the DOM module.
+ * 2. Shared utility/helper code should reside in the UTIL module.
+ * 3. When invoking a DOM or UTIL method tha returns a heap-allocated object, the caller must release the memory
  *    after consuming it.
- * 5. The first line of every command handler should be: "ValkeyModule_AutoMemory(ctx);". This is for enabling
+ * 4. The first line of every command handler should be: "ValkeyModule_AutoMemory(ctx);". This is for enabling
  *    auto memory management for the command.
- * 6. Every write command must support replication. Call "ValkeyModule_ReplicateVerbatim(ctx)" to tell Valkey to
+ * 5. Every write command must support replication. Call "ValkeyModule_ReplicateVerbatim(ctx)" to tell Valkey to
  *    replicate the command.
- * 7. Any write command that increases total memory utilization, should be created using "write deny-oom" flags.
+ * 6. Any write command that increases total memory utilization, should be created using "write deny-oom" flags.
  *    e.g., JSON.SET should be defined as "write deny-oom", while JSON.DEL does not need "deny-oom" as it can't
  *    increase the total memory.
  *
@@ -2634,7 +2633,7 @@ bool checkString(ValkeyModuleIO *ctx, const char *value, const char *caller) {
 }
 
 /*
- * Check an integer value, fail
+ * Check an integer value, fail if the value doesn't match the expected one
  */
 bool checkInt(ValkeyModuleIO *ctx, uint64_t value, const char *caller) {
     uint64_t val = ValkeyModule_LoadUnsigned(ctx);
