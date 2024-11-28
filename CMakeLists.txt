@@ -15,7 +15,7 @@ if("${ARCHITECTURE}" STREQUAL "x86_64")
 elseif("${ARCHITECTURE}" STREQUAL "aarch64")
     message("Building JSON for aarch64")
 else()
-    message(FATAL_ERROR "Unsupported architecture. JSON is only supported on x86_64 and aarch64.")
+    message(FATAL_ERROR "Unsupported architecture: ${ARCHITECTURE}. JSON is only supported on x86_64 and aarch64.")
 endif()
 
 # Project definition
@@ -124,7 +124,7 @@ if("${ARCHITECTURE}" STREQUAL "x86_64")
 elseif("${ARCHITECTURE}" STREQUAL "aarch64")
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -march=armv8-a")
 else()
-    message(FATAL_ERROR "Unsupported architecture. JSON is only supported on x86_64 and aarch64.")
+    message(FATAL_ERROR "Unsupported architecture: ${ARCHITECTURE}. JSON is only supported on x86_64 and aarch64.")
 endif()
 
 # Additional flags for all architectures
