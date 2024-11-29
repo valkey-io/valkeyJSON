@@ -1,0 +1,80 @@
+{
+  "store": {
+    "books": [
+      {
+        "category": "reference",
+        "author": "Nigel Rees",
+        "title": "Sayings of the Century",
+        "price": 8.95,
+        "in-stock": true
+      },
+      {
+        "category": "fiction",
+        "author": "Evelyn Waugh",
+        "title": "Sword of Honour",
+        "price": 12.99,
+        "in-stock": true,
+        "movies": [
+          {
+            "title": "Sword of Honour - movie",
+            "realisator": {
+              "first_name": "Bill",
+              "last_name": "Anderson"
+            }
+          }
+        ]
+      },
+      {
+        "category": "fiction",
+        "author": "Herman Melville",
+        "title": "Moby Dick",
+        "isbn": "0-553-21311-3",
+        "price": 9,
+        "in-stock": false
+      },
+      {
+        "category": "fiction",
+        "author": "J. R. R. Tolkien",
+        "title": "The Lord of the Rings",
+        "isbn": "0-115-03266-2",
+        "price": 22.99,
+        "in-stock": true
+      },
+      {
+        "category": "reference",
+        "author": "William Jr. Strunk",
+        "title": "The Elements of Style",
+        "price": 6.99,
+        "in-stock": false
+      },
+      {
+        "category": "fiction",
+        "author": "Leo Tolstoy",
+        "title": "Anna Karenina",
+        "price": 22.99,
+        "in-stock": true
+      },
+      {
+        "category": "reference",
+        "author": "Sarah Janssen",
+        "title": "The World Almanac and Book of Facts 2021",
+        "isbn": "0-925-23305-2",
+        "price": 10.69,
+        "in-stock": false
+      },
+      {
+        "category": "reference",
+        "author": "Kate L. Turabian",
+        "title": "Manual for Writers of Research Papers",
+        "isbn": "0-675-16695-1",
+        "price": 8.59,
+        "in-stock": true
+      }
+    ],
+    "bicycle": {
+      "color": "red",
+      "price": 19.64,
+      "in-stock": true
+    }
+  }
+}

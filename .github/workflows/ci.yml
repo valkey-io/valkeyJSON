@@ -1,0 +1,25 @@
+name: CI
+
+on: [push, pull_request]
+
+jobs:
+  build-ubuntu-latest:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        server_version: ['unstable', '8.0.0']
+    steps:
+    - uses: actions/checkout@v4
+    - name: Set the server verison for python integeration tests
+      run: echo "SERVER_VERSION=${{ matrix.server_version }}" >> $GITHUB_ENV
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: '3.9'
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install -r requirements.txt
+    - name: Build and Run tests. 
+      run: ./build.sh
