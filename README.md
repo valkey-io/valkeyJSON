@@ -36,6 +36,16 @@ make -j unit
 make -j test
 ```
 
+#### To run one integration test:
+```text
+TEST_PATTERN=<test-function-or-file> make -j test
+```
+e.g.,
+```text
+TEST_PATTERN=test_sanity make -j test
+TEST_PATTERN=test_rdb.py make -j test
+```
+
 ## Load the Module
 To test the module with a Valkey, you can load the module using any of the following ways:
 
@@ -84,3 +94,4 @@ JSON.STRLEN
 JSON.TOGGLE
 JSON.TYPE
 ```
+
