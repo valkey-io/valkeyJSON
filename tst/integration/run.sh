@@ -8,12 +8,18 @@ pkill -9 -f "valkey-server.*:" || true
 pkill -9 -f Valgrind || true
 pkill -9 -f "valkey-benchmark" || true
 
+# If environment variable SERVER_VERSION is not set, default to "unstable"
+if [ -z "$SERVER_VERSION" ]; then
+    echo "WARNING: SERVER_VERSION environment variable is not set. Defaulting to \"unstable\"."
+    export SERVER_VERSION="unstable"
+fi
+
 # cd to the current directory of the script
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "${DIR}"
 
 export MODULE_PATH=$2/build/src/libjson.so 
-echo "Running integration tests against Valkey version: $SERVER_VERSION"
+echo "Running integration tests against Valkey version $SERVER_VERSION"
 
 if [[ ! -z "${TEST_PATTERN}" ]] ; then
     export TEST_PATTERN="-k ${TEST_PATTERN}"
@@ -32,3 +38,4 @@ else
     echo "Unknown target: $1"
     exit 1
 fi
+
