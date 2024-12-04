@@ -73,8 +73,6 @@ KeyTable *keyTable = nullptr;
 rapidjson::HashTableFactors rapidjson::hashTableFactors;
 rapidjson::HashTableStats   rapidjson::hashTableStats;
 
-bool enforce_rdb_version_check = false;
-
 extern size_t hash_function(const char *text, size_t length);
 
 size_t json_get_max_document_size() {
@@ -2503,8 +2501,6 @@ int registerModuleConfigs(ValkeyModuleCtx *ctx) {
     REGISTER_BOOL_CONFIG(ctx, "enable-instrument-dump-value-before-delete", 0,
                          &instrument_enabled_dump_value_before_delete,
                          Config_GetInstrumentEnabled, Config_SetInstrumentEnabled)
-    REGISTER_BOOL_CONFIG(ctx, "enforce-rdb-version-check", 0, &enforce_rdb_version_check,
-                         Config_GetEnforceRdbVersionCheck, Config_SetEnforceRdbVersionCheck)
 
     REGISTER_NUMERIC_CONFIG(ctx, "max-document-size", DEFAULT_MAX_DOCUMENT_SIZE, VALKEYMODULE_CONFIG_MEMORY, 0,
                             LLONG_MAX, &config_max_document_size, Config_GetSizeConfig, Config_SetSizeConfig)
@@ -2567,64 +2563,22 @@ bool install_stub(ValkeyModuleCtx *ctx,
 }
 
 /*
- * Check a string value, fail if the expected value isn't present.
+ * Load a string value.
  */
-bool checkString(ValkeyModuleIO *ctx, const char *value, const char *caller) {
+bool loadString(ValkeyModuleIO *ctx, const char *caller) {
+    VALKEYMODULE_NOT_USED(caller);
     size_t str_len;
     std::unique_ptr<char> str(ValkeyModule_LoadStringBuffer(ctx, &str_len));
-    if (strncmp(value, str.get(), str_len)) {
-        ValkeyModule_Log(nullptr, "warning", "%s: Unexpected value in RDB. Expected %s Received %s",
-                        caller, value, str.get());
-        return false;
-    }
+    VALKEYMODULE_NOT_USED(str);
     return true;
 }
 
 /*
- * Check an integer value, fail if the value doesn't match the expected one
+ * Load an unsigned integer value
  */
-bool checkInt(ValkeyModuleIO *ctx, uint64_t value, const char *caller) {
-    uint64_t val = ValkeyModule_LoadUnsigned(ctx);
-    if (value != val) {
-        ValkeyModule_Log(nullptr, "warning", "%s: Unexpected value in RDB Expected: %lx Received: %lx",
-                        caller, value, val);
-        return false;
-    }
-    return true;
-}
-
-/*
- * Check the encoding version, For unsupported versions we ALWAYS put out a message in the log
- * but we only fail the RDB load if the config tells us to do it.
- */
-bool checkVersion(const char *type_name, int encver, int expected_encver) {
-    if (encver != expected_encver) {
-        if (enforce_rdb_version_check) {
-            ValkeyModule_Log(nullptr, "warning", "Unsupported Encoding Version %d for type:%s expected %d",
-                            encver, type_name, expected_encver);
-            return false;
-        } else {
-            ValkeyModule_Log(nullptr, "warning",
-                            "Unsupported Encoding Version %d for type:%s expected %d, WILL ATTEMPT LOADING ANYWAYS",
-                            encver, type_name, expected_encver);
-        }
-    }
-    return true;
-}
-
-bool checkVersionRange(const char *type_name, int encver, int ver_low, int ver_high) {
-    if (encver < ver_low || encver > ver_high) {
-        if (enforce_rdb_version_check) {
-            ValkeyModule_Log(nullptr, "warning", "Unsupported Encoding Version %d for type:%s expected [%d:%d]",
-                            encver, type_name, ver_low, ver_high);
-            return false;
-        } else {
-            ValkeyModule_Log(nullptr, "warning",
-                            "Unsupported Encoding Version %d for type:%s expected [%d:%d],"
-                            " WILL ATTEMPT TO LOAD ANYWAYS",
-                            encver, type_name, ver_low, ver_high);
-        }
-    }
+bool loadUnsigned(ValkeyModuleIO *ctx, const char *caller) {
+    VALKEYMODULE_NOT_USED(caller);
+    ValkeyModule_LoadUnsigned(ctx);
     return true;
 }
 
@@ -2633,33 +2587,33 @@ bool checkVersionRange(const char *type_name, int encver, int ver_low, int ver_h
  */
 #define SCDTYPE_ENCVER 1
 int scdtype_aux_load(ValkeyModuleIO *ctx, int encver, int when) {
-    if (!checkVersion("sdctype0", encver, SCDTYPE_ENCVER)) return VALKEYMODULE_ERR;
+    VALKEYMODULE_NOT_USED(encver);
     if (when == VALKEYMODULE_AUX_AFTER_RDB) {
-        if (!checkInt(ctx, 0, "scdtype")) return VALKEYMODULE_ERR;
+        if (!loadUnsigned(ctx, "scdtype")) return VALKEYMODULE_ERR;
     }
     return VALKEYMODULE_OK;
 }
 
 #define GEARSDT_ENCVER 3
 int gearsdt_aux_load(ValkeyModuleIO *ctx, int encver, int when) {
-    if (!checkVersion("gearsdt", encver, GEARSDT_ENCVER)) return VALKEYMODULE_ERR;
+    VALKEYMODULE_NOT_USED(encver);
     if (when == VALKEYMODULE_AUX_AFTER_RDB) {
-        if (!checkString(ctx, "StreamReader", "gears-dt")) return VALKEYMODULE_ERR;
-        if (!checkInt(ctx, 0, "gears-dt")) return VALKEYMODULE_ERR;
-        if (!checkString(ctx, "CommandReader", "gears-dt")) return VALKEYMODULE_ERR;
-        if (!checkInt(ctx, 0, "gears-dt")) return VALKEYMODULE_ERR;
-        if (!checkString(ctx, "KeysReader", "gears-dt")) return VALKEYMODULE_ERR;
-        if (!checkInt(ctx, 0, "gears-dt")) return VALKEYMODULE_ERR;
-        if (!checkString(ctx, "", "gears-dt")) return VALKEYMODULE_ERR;
+        if (!loadString(ctx, "gears-dt")) return VALKEYMODULE_ERR;
+        if (!loadUnsigned(ctx, "gears-dt")) return VALKEYMODULE_ERR;
+        if (!loadString(ctx, "gears-dt")) return VALKEYMODULE_ERR;
+        if (!loadUnsigned(ctx, "gears-dt")) return VALKEYMODULE_ERR;
+        if (!loadString(ctx, "gears-dt")) return VALKEYMODULE_ERR;
+        if (!loadUnsigned(ctx, "gears-dt")) return VALKEYMODULE_ERR;
+        if (!loadString(ctx, "gears-dt")) return VALKEYMODULE_ERR;
     }
     return VALKEYMODULE_OK;
 }
 
 #define GEARSRQ_ENCVER 1
 int gearsrq_aux_load(ValkeyModuleIO *ctx, int encver, int when) {
-    if (!checkVersion("gearsrq", encver, GEARSRQ_ENCVER)) return VALKEYMODULE_ERR;
+    VALKEYMODULE_NOT_USED(encver);
     if (when == VALKEYMODULE_AUX_BEFORE_RDB) {
-        if (!checkInt(ctx, 0, "gearsrq")) return VALKEYMODULE_ERR;
+        if (!loadUnsigned(ctx, "gearsrq")) return VALKEYMODULE_ERR;
     }
     return VALKEYMODULE_OK;
 }
