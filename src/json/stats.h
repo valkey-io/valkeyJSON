@@ -1,30 +1,12 @@
 /**
- * The STATS module's main responsibility is to produce the following metrics:
- * 1. Core metrics:
+ * The STATS module's main responsibility is to track memory usage at the level of the custom memory allocator,
+ * which provides the capability of tracking memory usage per JSON write operation. When a JSON key is mutated,
+ * we call API jsonstats_begin_track_mem() and jsonstats_end_track_mem() at the beginning and end of the write
+ * operation respectively, to calculate the delta of the memory usage. Then, we update the document size meta data.
+ *
+ * The module also maintains the following global info metrics:
  *    json_total_memory_bytes: total memory allocated to JSON objects
  *    json_num_documents: number of document keys in Valkey
- * 2. Histograms:
- *    json_doc_histogram: static histogram showing document size distribution. Value of the i_th element is
- *        number of documents whose size fall into bucket i.
- *    json_read_histogram: dynamic histogram for read operations (JSON.GET and JSON.MGET). Value of the i_th
- *        element is number of read operations with fetched JSON size falling into bucket i.
- *    json_insert_histogram: dynamic histogram for insert operations (JSON.SET and JSON.ARRINSERT) that either
- *        insert new documents or insert values into existing documents. Value of the i_th element is number of
- *        insert operations with inserted values' size falling into bucket i.
- *    json_update_histogram: dynamic histogram for update operations (JSON.SET, JSON.STRAPPEND and
- *        JSON.ARRAPPEND). Value of the i_th element is number of update operations with input JSON size falling into
- *        bucket i.
- *    json_delete_histogram: dynamic histogram for delete operations (JSON.DEL, JSON.FORGET, JSON.ARRPOP and
- *        JSON.ARRTRIM). Value of the i_th element is number of delete operations with deleted values' size falling
- *        into bucket i.
- *
- * Histogram buckets:
- *    [0,256), [256,1k), [1k,4k), [4k,16k), [16k,64k), [64k,256k), [256k,1m), [1m,4m), [4m,16m), [16m,64m), [64m,INF).
- *    Each bucket represents a JSON size range in bytes.
- *
- * To query metrics, run Valkey command:
- *    info modules: returns all metrics of the module
- *    info json_core_metrics: returns core metrics
  */
 #ifndef VALKEYJSONMODULE_JSON_STATS_H_
 #define VALKEYJSONMODULE_JSON_STATS_H_

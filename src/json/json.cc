@@ -2203,58 +2203,6 @@ void Module_Info(ValkeyModuleInfoCtx *ctx, int for_crash_report) {
         addULongLong("total_memory_bytes", jsonstats_get_used_mem() + keyTable->getStats().bytes);
         addULongLong("num_documents", jsonstats_get_num_doc_keys());
     endSection();
-
-    beginSection("ext_metrics")
-        addULongLong("max_path_depth_ever_seen", jsonstats_get_max_depth_ever_seen());
-        addULongLong("max_document_size_ever_seen", jsonstats_get_max_size_ever_seen());
-        addULongLong("total_malloc_bytes_used", memory_usage());
-        addULongLong("memory_traps_enabled", memory_traps_enabled());
-        addULongLong("defrag_count", jsonstats_get_defrag_count());
-        addULongLong("defrag_bytes", jsonstats_get_defrag_bytes());
-    endSection();
-
-    beginSection("document_composition")
-        addULongLong("boolean_count", logical_stats.boolean_count);
-        addULongLong("number_count", logical_stats.number_count);
-        addULongLong("sum_extra_numeric_chars", logical_stats.sum_extra_numeric_chars);
-        addULongLong("string_count", logical_stats.string_count);
-        addULongLong("sum_string_chars", logical_stats.sum_string_chars);
-        addULongLong("null_count", logical_stats.null_count);
-        addULongLong("array_count", logical_stats.array_count);
-        addULongLong("sum_array_elements", logical_stats.sum_array_elements);
-        addULongLong("object_count", logical_stats.object_count);
-        addULongLong("sum_object_members", logical_stats.sum_object_members);
-        addULongLong("sum_object_key_chars", logical_stats.sum_object_key_chars);
-    endSection();
-
-    // section: histograms
-    beginSection("histograms")
-        char name[128];
-        char buf[1024];
-        snprintf(name, sizeof(name), "doc_histogram");
-        jsonstats_sprint_doc_hist(buf, sizeof(buf));
-        ValkeyModule_InfoAddFieldCString(ctx, name, buf);
-
-        snprintf(name, sizeof(name), "read_histogram");
-        jsonstats_sprint_read_hist(buf, sizeof(buf));
-        ValkeyModule_InfoAddFieldCString(ctx, name, buf);
-
-        snprintf(name, sizeof(name), "insert_histogram");
-        jsonstats_sprint_insert_hist(buf, sizeof(buf));
-        ValkeyModule_InfoAddFieldCString(ctx, name, buf);
-
-        snprintf(name, sizeof(name), "update_histogram");
-        jsonstats_sprint_update_hist(buf, sizeof(buf));
-        ValkeyModule_InfoAddFieldCString(ctx, name, buf);
-
-        snprintf(name, sizeof(name), "delete_histogram");
-        jsonstats_sprint_delete_hist(buf, sizeof(buf));
-        ValkeyModule_InfoAddFieldCString(ctx, name, buf);
-
-        snprintf(name, sizeof(name), "histogram_buckets");
-        jsonstats_sprint_hist_buckets(buf, sizeof(buf));
-        ValkeyModule_InfoAddFieldCString(ctx, name, buf);
-    endSection();
 }
 
 //
