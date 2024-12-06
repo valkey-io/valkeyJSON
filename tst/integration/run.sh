@@ -18,7 +18,8 @@ fi
 DIR="$( cd "$( dirname "${BASH_SOURCE[0]}" )" >/dev/null 2>&1 && pwd )"
 cd "${DIR}"
 
-export MODULE_PATH=$2/build/src/libjson.so 
+export SOURCE_DIR=$2
+export MODULE_PATH=${SOURCE_DIR}/build/src/libjson.so
 echo "Running integration tests against Valkey version $SERVER_VERSION"
 
 if [[ ! -z "${TEST_PATTERN}" ]] ; then
