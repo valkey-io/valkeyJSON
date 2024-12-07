@@ -11,7 +11,7 @@ jobs:
         server_version: ['unstable', '8.0.0']
     steps:
     - uses: actions/checkout@v4
-    - name: Set the server verison for python integeration tests
+    - name: Set the server version for python integration tests
       run: echo "SERVER_VERSION=${{ matrix.server_version }}" >> $GITHUB_ENV
     - name: Set up Python
       uses: actions/setup-python@v3
