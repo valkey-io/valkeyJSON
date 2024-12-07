@@ -10,12 +10,10 @@ EXECUTE_PROCESS(
     OUTPUT_VARIABLE ARCHITECTURE
 )
 
-if("${ARCHITECTURE}" STREQUAL "x86_64")
-    message("Building JSON for x86_64")
-elseif("${ARCHITECTURE}" STREQUAL "aarch64")
-    message("Building JSON for aarch64")
+if("${ARCHITECTURE}" STREQUAL "x86_64" OR "${ARCHITECTURE}" STREQUAL "aarch64")
+    message("Building valkeyJSON for ${ARCHITECTURE}")
 else()
-    message(FATAL_ERROR "Unsupported architecture: ${ARCHITECTURE}. JSON is only supported on x86_64 and aarch64.")
+    message(FATAL_ERROR "Unsupported architecture: ${ARCHITECTURE}. valkeyJSON is only supported on x86_64 and aarch64.")
 endif()
 
 # Project definition
@@ -27,6 +25,12 @@ set(JSON_MODULE_LIB json)
 # Define the Valkey directories
 set(VALKEY_DOWNLOAD_DIR "${CMAKE_BINARY_DIR}/_deps/valkey-src")
 set(VALKEY_BIN_DIR "${CMAKE_BINARY_DIR}/_deps/valkey-src/src/valkey/src")
+
+# Valkey version
+if(NOT VALKEY_VERSION)
+    set(VALKEY_VERSION unstable)
+endif()
+message("Valkey version: ${VALKEY_VERSION}")
 
 # Download and build Valkey
 ExternalProject_Add(

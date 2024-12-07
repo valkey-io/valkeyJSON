@@ -8,20 +8,29 @@ ValkeyJSON leverages [RapidJSON](https://rapidjson.org/), a high-performance JSO
 
 #### To build the module and run tests
 ```text
-# Builds the valkey-server (unstable) for integration testing.
-export SERVER_VERSION=unstable
+# Build valkey-server (unstable) and run integration tests
 ./build.sh
+```
 
-# Builds the valkey-server (8.0.0) for integration testing.
-export SERVER_VERSION=8.0.0
-./build.sh
+The default valkey version is "unstable". To override it, do:
+```text
+# Build valkey-server (8.0.0) and run integration tests
+SERVER_VERSION=8.0.0 ./build.sh
 ```
 
 #### To build just the module
 ```text
 mdkir build
 cd build
-cmake .. -DVALKEY_VERSION=unstable
+cmake ..
+make
+```
+
+The default valkey version is "unstable". To override it, do:
+```text
+mdkir build
+cd build
+cmake .. -DVALKEY_VERSION=8.0.0
 make
 ```
 
