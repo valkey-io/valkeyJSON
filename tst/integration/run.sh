@@ -10,7 +10,7 @@ pkill -9 -f "valkey-benchmark" || true
 
 # If environment variable SERVER_VERSION is not set, default to "unstable"
 if [ -z "$SERVER_VERSION" ]; then
-    echo "WARNING: SERVER_VERSION environment variable is not set. Defaulting to \"unstable\"."
+    echo "SERVER_VERSION environment variable is not set. Defaulting to \"unstable\"."
     export SERVER_VERSION="unstable"
 fi
 
