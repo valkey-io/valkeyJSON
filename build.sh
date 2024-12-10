@@ -23,7 +23,11 @@ if [ ! -d "$BUILD_DIR" ]; then
     mkdir $BUILD_DIR
 fi
 cd $BUILD_DIR
-cmake .. -DVALKEY_VERSION=$SERVER_VERSION
+if [ -z "${CFLAGS}" ]; then
+  cmake .. -DVALKEY_VERSION=${SERVER_VERSION}
+else
+  cmake .. -DVALKEY_VERSION=${SERVER_VERSION} -DCFLAGS=${CFLAGS}
+fi
 make
 
 # Running the Valkey JSON unit tests.
@@ -42,7 +46,6 @@ if command -v pip > /dev/null 2>&1; then
 elif command -v pip3 > /dev/null 2>&1; then
     echo "Using pip3 to install packages..."
     pip3 install -r "$SCRIPT_DIR/$REQUIREMENTS_FILE"
-
 else
     echo "Error: Neither pip nor pip3 is available. Please install Python package installer."
     exit 1

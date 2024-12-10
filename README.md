@@ -18,6 +18,11 @@ The default valkey version is "unstable". To override it, do:
 SERVER_VERSION=8.0.0 ./build.sh
 ```
 
+Custom compiler flags can be passed to the build script via environment variable CFLAGS. For example:
+```text
+CFLAGS="-O0 -Wno-unused-function" ./build.sh
+```
+
 #### To build just the module
 ```text
 mdkir build
@@ -31,6 +36,14 @@ The default valkey version is "unstable". To override it, do:
 mdkir build
 cd build
 cmake .. -DVALKEY_VERSION=8.0.0
+make
+```
+
+Custom compiler flags can be passed to cmake via variable CFLAGS. For example:
+```text
+mdkir build
+cd build
+cmake .. -DCFLAGS="-O0 -Wno-unused-function"
 make
 ```
 

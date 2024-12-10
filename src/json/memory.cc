@@ -19,7 +19,7 @@ void (*memory_free)(void *ptr);
 void *(*memory_realloc)(void *orig_ptr, size_t new_size);
 size_t (*memory_allocsize)(void *ptr);
 
-bool memoryTrapsEnabled = true;
+bool memoryTrapsEnabled = false;
 
 static std::atomic<size_t> totalMemoryUsage;
 
