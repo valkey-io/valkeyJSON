@@ -2393,6 +2393,26 @@ int scdtype_aux_load(ValkeyModuleIO *ctx, int encver, int when) {
     return VALKEYMODULE_OK;
 }
 
+/*
+ * Stub for ftindex0 data type. There is one integer of 0's.
+ * There's an 18, a 19 and a 20. They don't appear to be any different when the data is empty :)
+ */
+#define FTINDEX_ENCVER 20
+int ftindex_aux_load(ValkeyModuleIO *ctx, int encver, int when) {
+    VALKEYMODULE_NOT_USED(encver);
+    VALKEYMODULE_NOT_USED(when);
+    if (!loadUnsigned(ctx, "ftindex")) return VALKEYMODULE_ERR;
+    return VALKEYMODULE_OK;
+}
+
+#define GRAPHDT_ENCVER 11
+int graphdt_aux_load(ValkeyModuleIO *ctx, int encver, int when) {
+    VALKEYMODULE_NOT_USED(encver);
+    VALKEYMODULE_NOT_USED(when);
+    if (!loadUnsigned(ctx, "graphdt")) return VALKEYMODULE_ERR;
+    return VALKEYMODULE_OK;
+}
+
 #define GEARSDT_ENCVER 3
 int gearsdt_aux_load(ValkeyModuleIO *ctx, int encver, int when) {
     VALKEYMODULE_NOT_USED(encver);
@@ -2527,6 +2547,8 @@ extern "C" int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx) {
      * Now create the stub datatypes for search
      */
     if (!install_stub(ctx, "scdtype00", SCDTYPE_ENCVER, scdtype_aux_load)) return VALKEYMODULE_ERR;
+    if (!install_stub(ctx, "ft_index0", FTINDEX_ENCVER, ftindex_aux_load)) return VALKEYMODULE_ERR;
+    if (!install_stub(ctx, "graphdata", GRAPHDT_ENCVER, graphdt_aux_load)) return VALKEYMODULE_ERR;
     if (!install_stub(ctx, "GEARS_DT0", GEARSDT_ENCVER, gearsdt_aux_load)) return VALKEYMODULE_ERR;
     if (!install_stub(ctx, "GEAR_REQ0", GEARSRQ_ENCVER, gearsrq_aux_load)) return VALKEYMODULE_ERR;
 

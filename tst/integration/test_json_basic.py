@@ -13,6 +13,8 @@ import json
 from math import isclose, isnan, isinf, frexp
 from json_test_case import JsonTestCase
 
+logging.basicConfig(level=logging.DEBUG)
+
 DATA_ORGANISM = '''
             {
                 "heavy_animal" : 200,
@@ -1693,7 +1695,7 @@ class TestJsonBasic(JsonTestCase):
                 v.decode() == val or v.decode() == val_alt)
             v = client.execute_command(
                 'JSON.NUMMULTBY', wikipedia, '.foo', mult)
-            # print("DEBUG val: %s, mult: %f, v: %s, exp: %s" %(val, mult, v.decode(), exp))
+            # logging.debug("DEBUG val: %s, mult: %f, v: %s, exp: %s" %(val, mult, v.decode(), exp))
             assert v is not None and v.decode() == exp or v.decode() == exp_alt
             v = client.execute_command(
                 'JSON.GET', wikipedia, '.foo')
