@@ -10,11 +10,11 @@ jobs:
       matrix:
         server_version: ['unstable', '8.0.0']
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
     - name: Set the server version for python integration tests
       run: echo "SERVER_VERSION=${{ matrix.server_version }}" >> $GITHUB_ENV
     - name: Set up Python
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@3542bca2639a428e1796aaa6a2ffef0c0f575566 #v3.1.4
       with:
         python-version: '3.9'
     - name: Install dependencies
