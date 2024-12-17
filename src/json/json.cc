@@ -2343,101 +2343,6 @@ int registerModuleConfigs(ValkeyModuleCtx *ctx) {
 }
 
 /*
- * Install stub datatype callback for aux_load.
- */
-bool install_stub(ValkeyModuleCtx *ctx,
-                  const char *type_name,
-                  int encver,
-                  int (*aux_load)(ValkeyModuleIO *, int encver, int when)) {
-    ValkeyModuleTypeMethods type_methods;
-    memset(&type_methods, 0, sizeof(ValkeyModuleTypeMethods));
-    type_methods.version = VALKEYMODULE_TYPE_METHOD_VERSION;
-    type_methods.aux_load = aux_load;
-    if (ValkeyModule_CreateDataType(ctx, type_name, encver, &type_methods) == nullptr) {
-        ValkeyModule_Log(ctx, "warning", "Failed to create data type %s", type_name);
-        return false;
-    }
-    ValkeyModule_Log(ctx, "debug", "Successfully installed stub data type %s", type_name);
-    return true;
-}
-
-/*
- * Load a string value.
- */
-bool loadString(ValkeyModuleIO *ctx, const char *caller) {
-    VALKEYMODULE_NOT_USED(caller);
-    size_t str_len;
-    std::unique_ptr<char> str(ValkeyModule_LoadStringBuffer(ctx, &str_len));
-    VALKEYMODULE_NOT_USED(str);
-    return true;
-}
-
-/*
- * Load an unsigned integer value
- */
-bool loadUnsigned(ValkeyModuleIO *ctx, const char *caller) {
-    VALKEYMODULE_NOT_USED(caller);
-    ValkeyModule_LoadUnsigned(ctx);
-    return true;
-}
-
-/*
- * Stub for scdtype0 data type.
- */
-#define SCDTYPE_ENCVER 1
-int scdtype_aux_load(ValkeyModuleIO *ctx, int encver, int when) {
-    VALKEYMODULE_NOT_USED(encver);
-    if (when == VALKEYMODULE_AUX_AFTER_RDB) {
-        if (!loadUnsigned(ctx, "scdtype")) return VALKEYMODULE_ERR;
-    }
-    return VALKEYMODULE_OK;
-}
-
-/*
- * Stub for ftindex0 data type. There is one integer of 0's.
- * There's an 18, a 19 and a 20. They don't appear to be any different when the data is empty :)
- */
-#define FTINDEX_ENCVER 20
-int ftindex_aux_load(ValkeyModuleIO *ctx, int encver, int when) {
-    VALKEYMODULE_NOT_USED(encver);
-    VALKEYMODULE_NOT_USED(when);
-    if (!loadUnsigned(ctx, "ftindex")) return VALKEYMODULE_ERR;
-    return VALKEYMODULE_OK;
-}
-
-#define GRAPHDT_ENCVER 11
-int graphdt_aux_load(ValkeyModuleIO *ctx, int encver, int when) {
-    VALKEYMODULE_NOT_USED(encver);
-    VALKEYMODULE_NOT_USED(when);
-    if (!loadUnsigned(ctx, "graphdt")) return VALKEYMODULE_ERR;
-    return VALKEYMODULE_OK;
-}
-
-#define GEARSDT_ENCVER 3
-int gearsdt_aux_load(ValkeyModuleIO *ctx, int encver, int when) {
-    VALKEYMODULE_NOT_USED(encver);
-    if (when == VALKEYMODULE_AUX_AFTER_RDB) {
-        if (!loadString(ctx, "gears-dt")) return VALKEYMODULE_ERR;
-        if (!loadUnsigned(ctx, "gears-dt")) return VALKEYMODULE_ERR;
-        if (!loadString(ctx, "gears-dt")) return VALKEYMODULE_ERR;
-        if (!loadUnsigned(ctx, "gears-dt")) return VALKEYMODULE_ERR;
-        if (!loadString(ctx, "gears-dt")) return VALKEYMODULE_ERR;
-        if (!loadUnsigned(ctx, "gears-dt")) return VALKEYMODULE_ERR;
-        if (!loadString(ctx, "gears-dt")) return VALKEYMODULE_ERR;
-    }
-    return VALKEYMODULE_OK;
-}
-
-#define GEARSRQ_ENCVER 1
-int gearsrq_aux_load(ValkeyModuleIO *ctx, int encver, int when) {
-    VALKEYMODULE_NOT_USED(encver);
-    if (when == VALKEYMODULE_AUX_BEFORE_RDB) {
-        if (!loadUnsigned(ctx, "gearsrq")) return VALKEYMODULE_ERR;
-    }
-    return VALKEYMODULE_OK;
-}
-
-/*
  * The hash function is FNV-1a (See https://en.wikipedia.org/wiki/Fowler%E2%80%93Noll%E2%80%93Vo_hash_function)
  * We are looking for a 38-bit hash function. As recommended, we use the 64-bit FNV-1a constants and then
  * use XOR-folding to reduce the hash to 38 bits (as well as improving the randomness of the low order bit)
@@ -2542,15 +2447,6 @@ extern "C" int ValkeyModule_OnLoad(ValkeyModuleCtx *ctx) {
                         DOCUMENT_TYPE_NAME, DOCUMENT_TYPE_ENCODING_VERSION);
         return VALKEYMODULE_ERR;
     }
-
-    /*
-     * Now create the stub datatypes for search
-     */
-    if (!install_stub(ctx, "scdtype00", SCDTYPE_ENCVER, scdtype_aux_load)) return VALKEYMODULE_ERR;
-    if (!install_stub(ctx, "ft_index0", FTINDEX_ENCVER, ftindex_aux_load)) return VALKEYMODULE_ERR;
-    if (!install_stub(ctx, "graphdata", GRAPHDT_ENCVER, graphdt_aux_load)) return VALKEYMODULE_ERR;
-    if (!install_stub(ctx, "GEARS_DT0", GEARSDT_ENCVER, gearsdt_aux_load)) return VALKEYMODULE_ERR;
-    if (!install_stub(ctx, "GEAR_REQ0", GEARSRQ_ENCVER, gearsrq_aux_load)) return VALKEYMODULE_ERR;
 
     // Indicate that we can handle I/O errors ourself.
     ValkeyModule_SetModuleOptions(ctx, VALKEYMODULE_OPTIONS_HANDLE_IO_ERRORS);
