@@ -18,7 +18,7 @@ JSON_INFO_NAMES = {
     'total_malloc_bytes_used':      JSON_MODULE_NAME + "_total_malloc_bytes_used",
     'memory_traps_enabled':         JSON_MODULE_NAME + "_memory_traps_enabled",
 }
-DEFAULT_MAX_DOCUMENT_SIZE = 64*1024*1024
+SIZE_64MB = 64 * 1024 * 1024
 DEFAULT_MAX_PATH_LIMIT = 128
 DEFAULT_WIKIPEDIA_PATH = 'data/wikipedia.json'
 DEFAULT_WIKIPEDIA_COMPACT_PATH = 'data/wikipedia_compact.json'
