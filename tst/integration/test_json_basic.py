@@ -1,4 +1,4 @@
-from utils_json import DEFAULT_MAX_PATH_LIMIT, DEFAULT_MAX_DOCUMENT_SIZE, \
+from utils_json import DEFAULT_MAX_PATH_LIMIT, SIZE_64MB, \
     DEFAULT_WIKIPEDIA_COMPACT_PATH, DEFAULT_WIKIPEDIA_PATH, \
     JSON_INFO_METRICS_SECTION, JSON_INFO_NAMES
 from valkey.exceptions import ResponseError, NoPermissionError
@@ -144,10 +144,8 @@ class TestJsonBasic(JsonTestCase):
 
     def setup_data(self):
         client = self.server.get_new_client()
-        client.config_set(
-            'json.max-path-limit', DEFAULT_MAX_PATH_LIMIT)
-        client.config_set(
-            'json.max-document-size', DEFAULT_MAX_DOCUMENT_SIZE)
+        client.config_set('json.max-path-limit', DEFAULT_MAX_PATH_LIMIT)
+        client.config_set('json.max-document-size', SIZE_64MB)
         # Need the following line when executing the test against a running Valkey.
         # Otherwise, data from previous test cases will interfere current test case.
         client.execute_command("FLUSHDB")
@@ -2716,12 +2714,11 @@ class TestJsonBasic(JsonTestCase):
                 'JSON.DEBUG MEMORY', wikipedia, '.', 'extra')
         assert str(e.value).find('wrong number of arguments') >= 0
 
-        # Test shared path
-        no_shared_mem = client.execute_command(
-            'JSON.DEBUG', 'MEMORY', wikipedia)
-        with_shared_mem = client.execute_command(
-            'JSON.DEBUG', 'MEMORY', wikipedia, '.')
-        assert with_shared_mem > no_shared_mem
+        # Verify the document size calculated by the "per document memory tracking" machinery matches the size
+        # calculated by the method of walking the JSON tree.
+        metadate_val = client.execute_command('JSON.DEBUG','MEMORY',wikipedia)
+        exp_val = client.execute_command('JSON.DEBUG','MEMORY',wikipedia,'.')
+        assert exp_val == metadate_val
 
     def test_json_duplicate_keys(self):
         client = self.server.get_new_client()
@@ -4058,3 +4055,71 @@ class TestJsonBasic(JsonTestCase):
 
         for i in range(len(output)):
             assert subcmd_dict[output[i][0].decode('ascii')] == output[i][1]
+
+    def test_doc_mem_size_with_numincrby(self):
+        """
+        Verify the correctness of json document size.
+        """
+        client = self.server.get_new_client()
+
+        # Set JSON key
+        key = k1
+        json = "{\"a\":1955439684,\"b\":5398,\"c\":[],\"d\":{\"e\":0,\"f\":2.7233281135559082,\"g\":1732953600,\"h\":false,\"i\":true}}"
+        cmd = f'JSON.SET {key} . {json}'
+        assert b'OK' == client.execute_command(cmd)
+
+        for _ in range(0, 10000):
+            # Increment the value by a large double and then set it to 0, so that the value flips between 0 and double.
+            # Since double is stored as string, each flip changes the memory size of the value.
+            cmd = f'json.numincrby {key} .d.e 7.055081799084578998899889890890'
+            client.execute_command(cmd)
+
+            cmd = f'json.set {key} .d.e 0'
+            assert b'OK' == client.execute_command(cmd)
+
+            # This value is the meta data updated by the "per key memory tracking" machinery
+            cmd = f'json.debug memory {key}'
+            metadata_val = client.execute_command(cmd)
+            assert metadata_val < 1000
+
+            # This value the malloc'ed size calculated by walking through the tree
+            cmd = f'json.debug memory {key} .'
+            exp_val = client.execute_command(cmd)
+            assert exp_val == metadata_val
+
+    def test_verify_doc_mem_size(self):
+        """
+        Verify per key doc memory size is correct.
+        """
+        client = self.server.get_new_client()
+        src_dir = os.getenv('SOURCE_DIR')
+        data_dir = f"{src_dir}/tst/integration/data/"
+        file_names = os.listdir(data_dir)
+        for file_name in file_names:
+            with open(f'{data_dir}/{file_name}', 'r') as f:
+                logging.info(f'Loading {file_name}')
+                data = f.read()
+            base_name = os.path.splitext(file_name)[0]
+            key_name = base_name
+            logging.info(f"Setting key {key_name}")
+            client.execute_command('json.set', key_name, '.', data)
+
+        # Scan keyspace
+        count = 0
+        cursor = 0
+        while True:
+            result = client.execute_command("SCAN", cursor, "TYPE", "ReJSON-RL")
+            for key in result[1]:
+                logging.info(f"Verifying memory size of key {key}")
+                # This value is the meta data updated by the "per key memory tracking" machinery
+                metadata_val = client.execute_command("JSON.DEBUG", "MEMORY", key)
+                # This value the malloc'ed size calculated by walking through the tree
+                exp_val = client.execute_command("JSON.DEBUG", "MEMORY", key, ".")
+                assert exp_val == metadata_val
+                assert metadata_val < SIZE_64MB
+                count += 1
+
+            if result[0] == 0:
+                break
+            cursor = result[0]
+        logging.info(f"Verified {count} json keys")

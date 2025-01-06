@@ -984,6 +984,51 @@ public:
         }
     }
 
+    /**
+     * Compute malloc'ed size of the subtree
+     */
+    size_t ComputeMallocedSize() const {
+        size_t mem_size = 0;
+        switch(data_.f.flags) {
+            case kArrayFlag:
+            {
+                GenericValue *e = GetElementsPointer();
+                mem_size += ValkeyModule_MallocSize(e);
+                for (GenericValue *v = e; v != e + data_.a.size; ++v) {
+                    mem_size += v->ComputeMallocedSize();
+                }
+            }
+                break;
+
+            case kObjectHTFlag:
+                mem_size += ValkeyModule_MallocSize(GetMembersPointerHT());
+                for (auto &m : GetObject()) {
+                    mem_size += m.value.ComputeMallocedSize();
+                }
+                break;
+
+            case kObjectVecFlag:
+                mem_size += ValkeyModule_MallocSize(GetMembersPointerVec());
+                for (auto &m : GetObject()) {
+                    mem_size += m.value.ComputeMallocedSize();
+                }
+                break;
+
+            case kCopyStringFlag:
+            case kNumberDoubleFlag:
+                mem_size += ValkeyModule_MallocSize(const_cast<Ch*>(GetStringPointer()));
+                break;
+
+            case kHandleFlag:
+                // KeyTable handles are not accounted to JSON memory consumption
+                break;
+
+            default:
+                break;
+        }
+        return mem_size;
+    }
+
     //@}
 
     //!@name Assignment operators

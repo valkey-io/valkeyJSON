@@ -82,6 +82,10 @@ size_t dom_get_doc_size(const JDocument *doc) {
     return doc->size;
 }
 
+size_t dom_get_doc_size_no_opt(const JDocument *doc) {
+    return sizeof(JDocument) + doc->GetJValue().ComputeMallocedSize();
+}
+
 void dom_set_doc_size(JDocument *doc, const size_t size) {
     doc->size = size;
 }
@@ -96,14 +100,24 @@ void dom_set_bucket_id(JDocument *doc, const uint32_t bucket_id) {
 
 JsonUtilCode dom_parse(ValkeyModuleCtx *ctx, const char *json_buf, const size_t buf_len, JDocument **doc) {
     *doc = nullptr;
-    JParser parser;
-    if (parser.Parse(json_buf, buf_len).HasParseError()) {
-        return parser.GetParseErrorCode();
+    // begin tracking memory
+    int64_t begin_val = jsonstats_begin_track_mem();
+
+    {
+        JParser parser;
+        if (parser.Parse(json_buf, buf_len).HasParseError()) {
+            return parser.GetParseErrorCode();
+        }
+        CHECK_DOCUMENT_SIZE_LIMIT(ctx, size_t(0), parser.GetJValueSize())
+        *doc = create_doc();
+        (*doc)->SetJValue(parser.GetJValue());
+        jsonstats_update_max_depth_ever_seen(parser.GetMaxDepth());
     }
-    CHECK_DOCUMENT_SIZE_LIMIT(ctx, size_t(0), parser.GetJValueSize())
-    *doc = create_doc();
-    (*doc)->SetJValue(parser.GetJValue());
-    jsonstats_update_max_depth_ever_seen(parser.GetMaxDepth());
+
+    // end tracking memory
+    int64_t delta = jsonstats_end_track_mem(begin_val);
+    dom_set_doc_size(*doc, dom_get_doc_size(*doc) + delta);
+
     return JSONUTIL_SUCCESS;
 }
 
@@ -1188,25 +1202,6 @@ JsonUtilCode dom_reply_with_resp(ValkeyModuleCtx *ctx, JDocument *doc, const cha
     return JSONUTIL_SUCCESS;
 }
 
-STATIC size_t mem_size_internal(const JValue& v) {
-    size_t size = sizeof(v);  // data structure size
-    if (v.IsString()) {
-        size += v.IsShortString() ? 0 : v.GetStringLength();  // add scalar string value's length
-    } else if (v.IsDouble()) {
-        size += v.IsShortDouble() ? 0 : v.GetDoubleStringLength();
-    } else if (v.IsObject()) {
-        for (auto m = v.MemberBegin(); m != v.MemberEnd(); ++m) {
-            size += m.NodeSize() - sizeof(m->value);  // Overhead (not including the value, which gets added below)
-            size += m->name.GetStringLength();    // add key's length
-            size += mem_size_internal(m->value);  // add value's size
-        }
-    } else if (v.IsArray()) {
-        for (auto &m : v.GetArray())
-            size += mem_size_internal(m);  // add member's size
-    }
-    return size;
-}
-
 JsonUtilCode dom_mem_size(JDocument *doc, const char *path, jsn::vector<size_t> &vec, bool &is_v2_path,
                           bool default_path) {
     vec.clear();
@@ -1234,7 +1229,11 @@ JsonUtilCode dom_mem_size(JDocument *doc, const char *path, jsn::vector<size_t> 
     }
 
     for (auto &v : selector.getResultSet()) {
-        vec.push_back(mem_size_internal(*v.first));
+        if (jsonutil_is_root_path(path)) {
+            vec.push_back(dom_get_doc_size_no_opt(static_cast<const JDocument*>(v.first)));
+        } else {
+            vec.push_back(sizeof(*v.first) + v.first->ComputeMallocedSize());
+        }
     }
     return JSONUTIL_SUCCESS;
 }

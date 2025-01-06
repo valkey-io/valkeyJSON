@@ -211,8 +211,16 @@ JsonUtilCode dom_parse(ValkeyModuleCtx *ctx, const char *json_buf, const size_t 
 /* Free a document object */
 void dom_free_doc(JDocument *doc);
 
-/* Get document size */
+/**
+ * Get document size with the optimization of returning the meta data.
+ */
 size_t dom_get_doc_size(const JDocument *doc);
+
+/**
+ * Get document size without optimization.
+ * Calculate the size by walking through the JSON tree.
+ */
+size_t dom_get_doc_size_no_opt(const JDocument *doc);
 
 /* Set document size */
 void dom_set_doc_size(JDocument *doc, const size_t size);
