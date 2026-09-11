@@ -139,6 +139,32 @@ arr = 'arr'
 foo = 'foo'
 baz = 'baz'
 
+OBJECT_FILTER_PRODUCTS = {
+    "productsById": {
+        "product1": {
+            "price": 10,
+            "active": True,
+            "title": "One",
+            "tags": [1, 2, 3],
+            "meta": {"old": 1},
+        },
+        "product2": {
+            "price": 20,
+            "active": False,
+            "title": "Two",
+            "tags": [4, 5, 6],
+            "meta": {"old": 2},
+        },
+        "product3": {
+            "price": 30,
+            "active": True,
+            "title": "Three",
+            "tags": [7, 8, 9],
+            "meta": {"old": 3},
+        },
+    }
+}
+
 
 # Base Test class containing all core json module tests
 class TestJsonBasic(JsonTestCase):
@@ -3350,6 +3376,335 @@ class TestJsonBasic(JsonTestCase):
                 JSON_INFO_NAMES['total_memory_bytes']]
             assert b2 == b0
 
+    @pytest.mark.parametrize(
+        "document,path,expected",
+        [
+            (
+                {"a": 1, "b": {"a": 1, "x": 2}, "c": {"a": 2}},
+                "$[?(@.a==1)]",
+                [{"a": 1, "x": 2}],
+            ),
+            (
+                OBJECT_FILTER_PRODUCTS,
+                "$.productsById[?(@.title)].title",
+                ["One", "Two", "Three"],
+            ),
+            (
+                OBJECT_FILTER_PRODUCTS,
+                "$.productsById[?(@.price > 15 && @.price < 25)].title",
+                ["Two"],
+            ),
+            (
+                OBJECT_FILTER_PRODUCTS,
+                '$.productsById[?(@.price > 25 || @.title == "One")].title',
+                ["One", "Three"],
+            ),
+            (
+                OBJECT_FILTER_PRODUCTS,
+                "$.productsById[?(@.tags[0] > 3)].title",
+                ["Two", "Three"],
+            ),
+            (
+                OBJECT_FILTER_PRODUCTS,
+                "$.productsById[?(@.tags[?(@==5)])].title",
+                ["Two"],
+            ),
+            (
+                {"low": 1, "high": 3},
+                "$[?(@ > 2)]",
+                [3],
+            ),
+            (
+                {"a value": {"weight": 300}, "weight": 300},
+                "$[?(@.weight > 200)]",
+                [{"weight": 300}],
+            ),
+            (
+                OBJECT_FILTER_PRODUCTS,
+                '$["productsById"][?(@["price"] > 20)]["title"]',
+                ["Three"],
+            ),
+            (
+                OBJECT_FILTER_PRODUCTS,
+                "$.productsById[?(@.price > 100)].title",
+                [],
+            ),
+        ],
+        ids=[
+            "object-children-not-container",
+            "attribute-existence",
+            "intersection",
+            "union-source-order",
+            "array-index",
+            "nested-filter",
+            "scalar-children",
+            "mixed-children",
+            "bracket-notation",
+            "no-match",
+        ],
+    )
+    def test_jsonpath_filter_object_children(self, document, path, expected):
+        client = self.server.get_new_client()
+        assert b'OK' == client.execute_command(
+            'JSON.SET', k1, '$', json.dumps(document))
+
+        actual = json.loads(client.execute_command('JSON.GET', k1, path))
+        assert expected == actual
+
+    @pytest.mark.parametrize(
+        "command,args,expected",
+        [
+            (
+                "JSON.GET",
+                ("$.productsById[?(@.price > 15)]",),
+                [
+                    OBJECT_FILTER_PRODUCTS["productsById"]["product2"],
+                    OBJECT_FILTER_PRODUCTS["productsById"]["product3"],
+                ],
+            ),
+            (
+                "JSON.OBJLEN",
+                ("$.productsById[?(@.price > 15)]",),
+                [5, 5],
+            ),
+            (
+                "JSON.OBJKEYS",
+                ("$.productsById[?(@.price > 15)]",),
+                [
+                    [b"price", b"active", b"title", b"tags", b"meta"],
+                    [b"price", b"active", b"title", b"tags", b"meta"],
+                ],
+            ),
+            (
+                "JSON.TYPE",
+                ("$.productsById[?(@.price > 15)]",),
+                [b"object", b"object"],
+            ),
+            (
+                "JSON.STRLEN",
+                ("$.productsById[?(@.price > 15)].title",),
+                [3, 5],
+            ),
+            (
+                "JSON.ARRLEN",
+                ("$.productsById[?(@.price > 15)].tags",),
+                [3, 3],
+            ),
+            (
+                "JSON.ARRINDEX",
+                ("$.productsById[?(@.price > 15)].tags", "5"),
+                [1, -1],
+            ),
+        ],
+    )
+    def test_jsonpath_filter_object_children_read_commands(
+            self, command, args, expected):
+        client = self.server.get_new_client()
+        assert b'OK' == client.execute_command(
+            'JSON.SET', k1, '$', json.dumps(OBJECT_FILTER_PRODUCTS))
+
+        actual = client.execute_command(command, k1, *args)
+        if command == "JSON.GET":
+            actual = json.loads(actual)
+        assert expected == actual
+
+    @pytest.mark.parametrize(
+        "command,args,expected_response,response_is_json,expected_document",
+        [
+            (
+                "JSON.GET",
+                ("$[?(@.a==1)]",),
+                [{"a": 1, "x": 2}],
+                True,
+                {"a": 1, "b": {"a": 1, "x": 2}, "c": {"a": 2}},
+            ),
+            (
+                "JSON.OBJLEN",
+                ("$[?(@.a==1)]",),
+                [2],
+                False,
+                {"a": 1, "b": {"a": 1, "x": 2}, "c": {"a": 2}},
+            ),
+            (
+                "JSON.SET",
+                ("$[?(@.a==1)].a", "9"),
+                b"OK",
+                False,
+                {"a": 1, "b": {"a": 9, "x": 2}, "c": {"a": 2}},
+            ),
+            (
+                "JSON.NUMINCRBY",
+                ("$[?(@.a==1)].a", "10"),
+                [11],
+                True,
+                {"a": 1, "b": {"a": 11, "x": 2}, "c": {"a": 2}},
+            ),
+            (
+                "JSON.DEL",
+                ("$[?(@.a==1)]",),
+                1,
+                False,
+                {"a": 1, "c": {"a": 2}},
+            ),
+            (
+                "JSON.CLEAR",
+                ("$[?(@.a==1)]",),
+                1,
+                False,
+                {"a": 1, "b": {}, "c": {"a": 2}},
+            ),
+        ],
+    )
+    def test_jsonpath_filter_object_children_command_impact(
+            self, command, args, expected_response, response_is_json,
+            expected_document):
+        client = self.server.get_new_client()
+        document = {"a": 1, "b": {"a": 1, "x": 2}, "c": {"a": 2}}
+        assert b'OK' == client.execute_command(
+            'JSON.SET', k1, '$', json.dumps(document))
+
+        actual_response = client.execute_command(command, k1, *args)
+        if response_is_json:
+            actual_response = json.loads(actual_response)
+        assert expected_response == actual_response
+        assert expected_document == json.loads(
+            client.execute_command('JSON.GET', k1))
+
+    def test_jsondel_filter_on_object_issue_79(self):
+        client = self.server.get_new_client()
+        document = {
+            "root": {
+                str(index): {"value": index}
+                for index in range(1, 6)
+            }
+        }
+        assert b'OK' == client.execute_command(
+            'JSON.SET', k1, '$', json.dumps(document))
+
+        assert 3 == client.execute_command(
+            'JSON.DEL', k1, '$.root[?(@.value > 2)]')
+        assert {"root": {
+            "1": {"value": 1},
+            "2": {"value": 2},
+        }} == json.loads(client.execute_command('JSON.GET', k1))
+
+    @pytest.mark.parametrize(
+        "member_name",
+        ["slash/key", "tilde~key", "0", "space key"],
+    )
+    def test_jsonpath_filter_object_children_preserves_member_name(
+            self, member_name):
+        client = self.server.get_new_client()
+        document = {
+            "items": {
+                member_name: {"selected": True, "value": 1},
+                "other": {"selected": False, "value": 2},
+            }
+        }
+        assert b'OK' == client.execute_command(
+            'JSON.SET', k1, '$', json.dumps(document))
+
+        assert b'OK' == client.execute_command(
+            'JSON.SET', k1,
+            '$.items[?(@.selected==true)].value', '9')
+        document["items"][member_name]["value"] = 9
+        assert document == json.loads(client.execute_command('JSON.GET', k1))
+
+    @pytest.mark.parametrize(
+        "command,args,verification_path,expected",
+        [
+            (
+                "JSON.SET",
+                ("$.productsById[?(@.price > 15)].title", '"Updated"'),
+                "$.productsById.*.title",
+                ["One", "Updated", "Updated"],
+            ),
+            (
+                "JSON.MERGE",
+                (
+                    "$.productsById[?(@.price > 15)].meta",
+                    '{"updated":true}',
+                ),
+                "$.productsById.*.meta",
+                [
+                    {"old": 1},
+                    {"old": 2, "updated": True},
+                    {"old": 3, "updated": True},
+                ],
+            ),
+            (
+                "JSON.NUMINCRBY",
+                ("$.productsById[?(@.price > 15)].price", "1"),
+                "$.productsById.*.price",
+                [10, 21, 31],
+            ),
+            (
+                "JSON.NUMMULTBY",
+                ("$.productsById[?(@.price > 15)].price", "2"),
+                "$.productsById.*.price",
+                [10, 40, 60],
+            ),
+            (
+                "JSON.TOGGLE",
+                ("$.productsById[?(@.price > 15)].active",),
+                "$.productsById.*.active",
+                [True, True, False],
+            ),
+            (
+                "JSON.STRAPPEND",
+                ("$.productsById[?(@.price > 15)].title", '"!"'),
+                "$.productsById.*.title",
+                ["One", "Two!", "Three!"],
+            ),
+            (
+                "JSON.ARRAPPEND",
+                ("$.productsById[?(@.price > 15)].tags", "10"),
+                "$.productsById.*.tags",
+                [[1, 2, 3], [4, 5, 6, 10], [7, 8, 9, 10]],
+            ),
+            (
+                "JSON.ARRINSERT",
+                ("$.productsById[?(@.price > 15)].tags", "0", "0"),
+                "$.productsById.*.tags",
+                [[1, 2, 3], [0, 4, 5, 6], [0, 7, 8, 9]],
+            ),
+            (
+                "JSON.ARRPOP",
+                ("$.productsById[?(@.price > 15)].tags", "-1"),
+                "$.productsById.*.tags",
+                [[1, 2, 3], [4, 5], [7, 8]],
+            ),
+            (
+                "JSON.ARRTRIM",
+                ("$.productsById[?(@.price > 15)].tags", "0", "1"),
+                "$.productsById.*.tags",
+                [[1, 2, 3], [4, 5], [7, 8]],
+            ),
+            (
+                "JSON.CLEAR",
+                ("$.productsById[?(@.price > 15)].tags",),
+                "$.productsById.*.tags",
+                [[1, 2, 3], [], []],
+            ),
+            (
+                "JSON.DEL",
+                ("$.productsById[?(@.price > 15)]",),
+                "$.productsById.*.title",
+                ["One"],
+            ),
+        ],
+    )
+    def test_jsonpath_filter_object_children_mutation_commands(
+            self, command, args, verification_path, expected):
+        client = self.server.get_new_client()
+        assert b'OK' == client.execute_command(
+            'JSON.SET', k1, '$', json.dumps(OBJECT_FILTER_PRODUCTS))
+
+        client.execute_command(command, k1, *args)
+        actual = json.loads(
+            client.execute_command('JSON.GET', k1, verification_path))
+        assert expected == actual
+
     def test_jsonpath_filter_expression(self):
         client = self.server.get_new_client()
 
@@ -3498,9 +3853,9 @@ class TestJsonBasic(JsonTestCase):
             (k4, '$["books"][?((@["price"]>1&&@["price"]<20)&&(@["sold"]==false))]',
              b'[{"price":15,"sold":false,"title":"abc"}]'),
             (k5, '$.*[?(@ > 7 || @ < 3)]',
-             b'[8,9,1,2]'),   # order test
+             b'[8,9,1,2]'),   # expression-order compatibility test
             (k5, '$.*[?(@ < 3 || @ > 7)]',
-             b'[1,2,8,9]'),   # order test
+             b'[1,2,8,9]'),   # expression-order compatibility test
             (k5, '$.*[?(@ > 3 && @ < 7)]',
              b'[4,5,6]')
         ]:
@@ -4034,16 +4389,16 @@ class TestJsonBasic(JsonTestCase):
 
         for (key, path, exp) in [
             (k1, '$["an object"].[?(@.weight > 200)].["a value"]',
-             b'[300]'),
+             b'[]'),
             (k1, '$["an object"].[?(@.weight == 300)].["a value"]',
-             b'[300]'),
+             b'[]'),
             (k1, '$["an object"].[?(@.weight > 300)].["a value"]',
              b'[]'),
             (k1, '$["another object"].[?(@["a value"] > 200)].weight',
-             b'[400]'),
+             b'[]'),
             (k1, '$["another object"].[?(@.["a value"] > 200)].weight',
-             b'[400]'),
-            (k1, '$["another object"].[?(@.["my key"] == "key inside there")].weight', b'[400]'),
+             b'[]'),
+            (k1, '$["another object"].[?(@.["my key"] == "key inside there")].weight', b'[]'),
             (k1, '$["objects"].[?(@.weight > 200)].["a value"]',
              b'[300,400]'),
             (k1, '$["objects"].[?(@.["my key"] == "key inside there")].weight',
