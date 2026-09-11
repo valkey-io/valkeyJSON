@@ -67,6 +67,37 @@ class SelectorTest : public ::testing::Test {
                         "  }\n"
                         "}";
 
+    const char *object_store =
+        "{\n"
+        "  \"booksById\": {\n"
+        "    \"book1\": {\n"
+        "      \"bookTitle\": \"Sayings of the Century\",\n"
+        "      \"price\": 8.95,\n"
+        "      \"ratings\": [2, 4]\n"
+        "    },\n"
+        "    \"book2\": {\n"
+        "      \"bookTitle\": \"Sword of Honour\",\n"
+        "      \"price\": 12.99,\n"
+        "      \"ratings\": [3, 4]\n"
+        "    },\n"
+        "    \"book3\": {\n"
+        "      \"bookTitle\": \"Moby Dick\",\n"
+        "      \"price\": 18.99,\n"
+        "      \"ratings\": [5, 4]\n"
+        "    },\n"
+        "    \"book4\": {\n"
+        "      \"bookTitle\": \"The Lord of the Rings\",\n"
+        "      \"price\": 22.99,\n"
+        "      \"ratings\": [2, 5]\n"
+        "    },\n"
+        "    \"book5\": {\n"
+        "      \"bookTitle\": \"Ulysses\",\n"
+        "      \"price\": 30.0,\n"
+        "      \"ratings\": [1, 2]\n"
+        "    }\n"
+        "  }\n"
+        "}";
+
     const char *node_accounts = "{\n"
                                 "  \"clientName\": \"jim\",\n"
                                 "  \"nameSpace\": \"BobSpace\",\n"
@@ -119,7 +150,32 @@ class SelectorTest : public ::testing::Test {
         delete keyTable;
         keyTable = nullptr;
     }
+
+    void expectStringResults(JDocument &document, const char *path,
+                             const std::vector<const char *> &expected) {
+        SCOPED_TRACE(path);
+        Selector selector;
+        ASSERT_EQ(selector.getValues(document, path), JSONUTIL_SUCCESS);
+
+        const auto &results = selector.getResultSet();
+        ASSERT_EQ(results.size(), expected.size());
+        size_t index = 0;
+        for (const char *value : expected) {
+            EXPECT_STREQ(results[index].first->GetString(), value);
+            ++index;
+        }
+    }
 };
+
+struct ObjectFilterCase {
+    const char *name;
+    const char *path;
+    std::vector<const char *> expected;
+};
+
+class ObjectFilterTest
+    : public SelectorTest,
+      public ::testing::WithParamInterface<ObjectFilterCase> {};
 
 TEST_F(SelectorTest, test_filterExpr_attributeFilter) {
     JDocument *d1;
@@ -442,14 +498,14 @@ TEST_F(SelectorTest, test_filterExpr_expression_part6) {
     rc = selector.getValues(*d1, "$..[?(@.NumEntry>4)].NumEntry");
     EXPECT_EQ(rc, JSONUTIL_SUCCESS);
     auto &rs0 = selector.getResultSet();
-    EXPECT_EQ(rs0.size(), 2);
+    ASSERT_EQ(rs0.size(), 2);
     EXPECT_EQ(rs0[0].first->GetInt(), 5);
     EXPECT_EQ(rs0[1].first->GetInt(), 6);
 
     rc = selector.getValues(*d1, "$..[?(4<@.NumEntry||@.NumEntry<3)].NumEntry");
     EXPECT_EQ(rc, JSONUTIL_SUCCESS);
     auto &rs1 = selector.getResultSet();
-    EXPECT_EQ(rs1.size(), 4);
+    ASSERT_EQ(rs1.size(), 4);
     EXPECT_EQ(rs1[0].first->GetInt(), 5);
     EXPECT_EQ(rs1[1].first->GetInt(), 6);
     EXPECT_EQ(rs1[2].first->GetInt(), 1);
@@ -458,14 +514,14 @@ TEST_F(SelectorTest, test_filterExpr_expression_part6) {
     rc = selector.getValues(*d1, "$..NumEntry[?(@>4)]");
     EXPECT_EQ(rc, JSONUTIL_SUCCESS);
     auto &rs2 = selector.getResultSet();
-    EXPECT_EQ(rs2.size(), 2);
+    ASSERT_EQ(rs2.size(), 2);
     EXPECT_EQ(rs2[0].first->GetInt(), 5);
     EXPECT_EQ(rs2[1].first->GetInt(), 6);
 
     rc = selector.getValues(*d1, "$..[\"NumEntry\"][?(6>@&&@>3)]");
     EXPECT_EQ(rc, JSONUTIL_SUCCESS);
     auto &rs3 = selector.getResultSet();
-    EXPECT_EQ(rs3.size(), 2);
+    ASSERT_EQ(rs3.size(), 2);
     EXPECT_EQ(rs3[0].first->GetInt(), 4);
     EXPECT_EQ(rs3[1].first->GetInt(), 5);
 
@@ -1081,12 +1137,11 @@ TEST_F(SelectorTest, test_filter_on_object) {
     EXPECT_EQ(rc, JSONUTIL_SUCCESS);
 
     Selector selector;
-    rc = selector.getValues(*d1, "$.[\"an object\"].[?(@.weight > 200)].[\"a value\"]");
+    rc = selector.getValues(*d1, "$[\"an object\"].[?(@.weight > 200)].[\"a value\"]");
     EXPECT_EQ(rc, JSONUTIL_SUCCESS);
-    EXPECT_EQ(selector.getResultSet().size(), 1);
-    EXPECT_EQ(selector.getResultSet()[0].first->GetInt(), 300);
+    EXPECT_TRUE(selector.getResultSet().empty());
 
-    rc = selector.getValues(*d1, "$.[\"an object\"].[?(@.weight > 300)].[\"a value\"]");
+    rc = selector.getValues(*d1, "$[\"an object\"].[?(@.weight > 300)].[\"a value\"]");
     EXPECT_EQ(rc, JSONUTIL_SUCCESS);
     EXPECT_EQ(selector.getResultSet().size(), 0);
 
@@ -1289,6 +1344,146 @@ TEST_F(SelectorTest, test_delete) {
     dom_free_doc(d1);
 }
 
+TEST_F(SelectorTest, test_delete_filter_on_object_members) {
+    JDocument *d1;
+    JsonUtilCode rc = dom_parse(nullptr, object_store, strlen(object_store), &d1);
+    EXPECT_EQ(rc, JSONUTIL_SUCCESS);
+
+    size_t num_vals_deleted;
+    rc = dom_delete_value(d1, "$.booksById[?(@.price > 15)]",
+                          num_vals_deleted);
+    EXPECT_EQ(rc, JSONUTIL_SUCCESS);
+    EXPECT_EQ(num_vals_deleted, 3);
+
+    Selector selector;
+    rc = selector.getValues(*d1, "$.booksById.*");
+    EXPECT_EQ(rc, JSONUTIL_SUCCESS);
+    EXPECT_EQ(selector.getResultSet().size(), 2);
+
+    dom_free_doc(d1);
+}
+
+TEST_F(SelectorTest, test_read_and_update_filter_on_object_members) {
+    JDocument *d1;
+    JsonUtilCode rc = dom_parse(nullptr, object_store, strlen(object_store), &d1);
+    EXPECT_EQ(rc, JSONUTIL_SUCCESS);
+
+    Selector selector;
+    rc = selector.getValues(*d1, "$.booksById[?(@.price > 15)]");
+    EXPECT_EQ(rc, JSONUTIL_SUCCESS);
+    ASSERT_EQ(selector.getResultSet().size(), 3);
+    EXPECT_STREQ(selector.getResultSet()[0].second.c_str(), "/booksById/book3");
+    EXPECT_STREQ(selector.getResultSet()[1].second.c_str(), "/booksById/book4");
+    EXPECT_STREQ(selector.getResultSet()[2].second.c_str(), "/booksById/book5");
+
+    expectStringResults(
+        *d1, "$.booksById[?(@.price > 15)].bookTitle",
+        {"Moby Dick", "The Lord of the Rings", "Ulysses"});
+
+    rc = dom_set_value(nullptr, d1,
+                       "$.booksById[?(@.price > 15)].bookTitle",
+                       "\"Selected\"");
+    EXPECT_EQ(rc, JSONUTIL_SUCCESS);
+
+    expectStringResults(
+        *d1, "$.booksById.*.bookTitle",
+        {"Sayings of the Century", "Sword of Honour", "Selected", "Selected",
+         "Selected"});
+
+    dom_free_doc(d1);
+}
+
+TEST_P(ObjectFilterTest, returns_matching_object_members) {
+    JDocument *d1;
+    JsonUtilCode rc = dom_parse(nullptr, object_store, strlen(object_store), &d1);
+    EXPECT_EQ(rc, JSONUTIL_SUCCESS);
+
+    const ObjectFilterCase &test_case = GetParam();
+    expectStringResults(*d1, test_case.path, test_case.expected);
+
+    dom_free_doc(d1);
+}
+
+INSTANTIATE_TEST_SUITE_P(
+    ObjectChildren, ObjectFilterTest,
+    ::testing::Values(
+        ObjectFilterCase{
+            "AttributeExists",
+            "$.booksById[?(@.bookTitle)].bookTitle",
+            {"Sayings of the Century", "Sword of Honour", "Moby Dick",
+             "The Lord of the Rings", "Ulysses"}},
+        ObjectFilterCase{
+            "Intersection",
+            "$.booksById[?(@.price > 15 && @.price < 25)].bookTitle",
+            {"Moby Dick", "The Lord of the Rings"}},
+        ObjectFilterCase{
+            "Union",
+            "$.booksById[?(@.price > 25 || "
+            "@.bookTitle == \"Sayings of the Century\")].bookTitle",
+            {"Sayings of the Century", "Ulysses"}},
+        ObjectFilterCase{
+            "ArrayIndex",
+            "$.booksById[?(@.ratings[0] > 2)].bookTitle",
+            {"Sword of Honour", "Moby Dick"}},
+        ObjectFilterCase{
+            "NestedFilter",
+            "$.booksById[?(@.ratings[?(@==4)])].bookTitle",
+            {"Sayings of the Century", "Sword of Honour", "Moby Dick"}},
+        ObjectFilterCase{
+            "NoMatch",
+            "$.booksById[?(@.price > 100)].bookTitle",
+            {}},
+        ObjectFilterCase{
+            "ImpossibleIntersection",
+            "$.booksById[?(@.price > 25 && @.price < 10)].bookTitle",
+            {}},
+        ObjectFilterCase{
+            "FilterOnSingleObject",
+            "$.booksById.book3[?(@.bookTitle)].bookTitle",
+            {}},
+        ObjectFilterCase{
+            "RecursiveDescent",
+            "$..[?(@.price > 15)].bookTitle",
+            {"Moby Dick", "The Lord of the Rings", "Ulysses"}}),
+    [](const ::testing::TestParamInfo<ObjectFilterCase> &info) {
+        return info.param.name;
+    });
+
+TEST_F(SelectorTest, test_filter_union_preserves_array_expression_order) {
+    const char *input =
+        "[{\"id\":\"first\",\"price\":20},"
+        "{\"id\":\"second\",\"price\":0},"
+        "{\"id\":\"third\",\"price\":30}]";
+    JDocument *d1;
+    JsonUtilCode rc = dom_parse(nullptr, input, strlen(input), &d1);
+    EXPECT_EQ(rc, JSONUTIL_SUCCESS);
+
+    Selector selector;
+    rc = selector.getValues(*d1, "$[?(@.price > 15 || @.id == \"second\")].id");
+    EXPECT_EQ(rc, JSONUTIL_SUCCESS);
+    ASSERT_EQ(selector.getResultSet().size(), 3);
+    EXPECT_STREQ(selector.getResultSet()[0].first->GetString(), "first");
+    EXPECT_STREQ(selector.getResultSet()[1].first->GetString(), "third");
+    EXPECT_STREQ(selector.getResultSet()[2].first->GetString(), "second");
+
+    dom_free_doc(d1);
+}
+
+TEST_F(SelectorTest, test_filter_object_scalar_members) {
+    const char *input = "{\"low\":1,\"high\":3}";
+    JDocument *d1;
+    JsonUtilCode rc = dom_parse(nullptr, input, strlen(input), &d1);
+    EXPECT_EQ(rc, JSONUTIL_SUCCESS);
+
+    Selector selector;
+    rc = selector.getValues(*d1, "$[?(@ > 2)]");
+    EXPECT_EQ(rc, JSONUTIL_SUCCESS);
+    ASSERT_EQ(selector.getResultSet().size(), 1);
+    EXPECT_EQ(selector.getResultSet()[0].first->GetInt(), 3);
+
+    dom_free_doc(d1);
+}
+
 TEST_F(SelectorTest, test_filterExpr_overflow_literal) {
     JDocument *d1;
     const char *input = "{\"n\":5}";
@@ -1391,4 +1586,3 @@ TEST_F(SelectorTest, test_delete_tilde_keys_recursive) {
 
     dom_free_doc(d1);
 }
-

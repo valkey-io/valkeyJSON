@@ -1125,7 +1125,7 @@ JsonUtilCode Selector::parseWildcardInBrackets() {
         if (!lex.matchToken(Token::QUESTION_MARK)) return JSONUTIL_INVALID_JSON_PATH;
         if (!lex.matchToken(Token::LPAREN)) return JSONUTIL_INVALID_JSON_PATH;
 
-        jsn::vector<int64_t> result;  // subset of indexes of the current array
+        jsn::vector<int64_t> result;  // candidate indexes/ordinals for the current container
         JsonUtilCode rc = parseFilterExpr(result);
         if (rc != JSONUTIL_SUCCESS) return rc;
 
@@ -1678,7 +1678,7 @@ JsonUtilCode Selector::processSlice(int64_t start, int64_t end, const int64_t st
 JsonUtilCode Selector::parseFilter() {
     lex.nextToken();  // skip QUESTION_MARK
     if (!lex.matchToken(Token::LPAREN)) return JSONUTIL_INVALID_JSON_PATH;
-    jsn::vector<int64_t> result;  // subset of indexes of the current array
+    jsn::vector<int64_t> result;  // candidate indexes/ordinals for the current container
     JsonUtilCode rc = parseFilterExpr(result);
     if (rc != JSONUTIL_SUCCESS) return rc;
     if (!lex.matchToken(Token::RPAREN)) return JSONUTIL_INVALID_JSON_PATH;
@@ -1701,10 +1701,23 @@ JsonUtilCode Selector::processFilterResult(jsn::vector<int64_t> &result) {
         node = nullptr;
         return JSONUTIL_SUCCESS;
     } else if (node->IsObject()) {
-        if (result.empty()) {
-            // Null out the current node to signal the node is not selected.
-            node = nullptr;
+        std::sort(result.begin(), result.end());
+        auto match = result.begin();
+        int64_t ordinal = 0;
+        for (auto &member : node->GetObject()) {
+            if (match == result.end())
+                break;
+            if (*match == ordinal) {
+                StringViewHelper member_name;
+                member_name.setInternalView(member.name.GetStringView());
+                rc = evalObjectMember(member_name, member.value);
+                if (isSyntaxError(rc)) return rc;
+                ++match;
+            }
+            ++ordinal;
         }
+
+        node = nullptr;
         return JSONUTIL_SUCCESS;
     } else {
         if (!result.empty()) {
@@ -2074,7 +2087,25 @@ JsonUtilCode Selector::processArrayContains(const StringViewHelper &member_name,
                 }
             }
         }
+    } else if (node->IsObject()) {
+        int64_t ordinal = 0;
+        for (const auto &member : node->GetObject()) {
+            const JValue &candidate = member.value;
+            if (candidate.IsObject()) {
+                auto it = candidate.FindMember(member_name.getView());
+                if (it != candidate.MemberEnd() && it->value.IsArray()) {
+                    for (const auto &element : it->value.GetArray()) {
+                        if (evalOp(&element, op, comparison_value)) {
+                            result.push_back(ordinal);
+                            break;
+                        }
+                    }
+                }
+            }
+            ++ordinal;
+        }
     }
+
     if (!lex.matchToken(Token::RPAREN, true)) return JSONUTIL_INVALID_JSON_PATH;
     if (!lex.matchToken(Token::RBRACKET)) return JSONUTIL_INVALID_JSON_PATH;
     return JSONUTIL_SUCCESS;
@@ -2106,6 +2137,25 @@ JsonUtilCode Selector::processComparisonExprAtIndex(const int64_t idx, const Str
                 }
             }
         }
+    } else if (node->IsObject()) {
+        int64_t ordinal = 0;
+        for (const auto &member : node->GetObject()) {
+            const JValue &candidate = member.value;
+            if (candidate.IsObject()) {
+                auto it = candidate.FindMember(member_name.getView());
+                if (it != candidate.MemberEnd() && it->value.IsArray()) {
+                    int64_t inner_index = idx;
+                    if (inner_index < 0) inner_index += static_cast<int64_t>(it->value.Size());
+                    if (inner_index >= 0 &&
+                        inner_index < static_cast<int64_t>(it->value.Size())) {
+                        const JValue &element = it->value.GetArray()[inner_index];
+                        if (evalOp(&element, op, comparison_value))
+                            result.push_back(ordinal);
+                    }
+                }
+            }
+            ++ordinal;
+        }
     }
     return JSONUTIL_SUCCESS;
 }
@@ -2128,12 +2178,29 @@ JsonUtilCode Selector::processComparisonExpr(const bool is_self, const StringVie
             }
             if (evalOp(v, op, comparison_value)) result.push_back(i);
         }
-    } else if (node->IsObject()){
-        JValue::MemberIterator it = node->FindMember(member_name.getView());
-        if (it != node->MemberEnd()) {
-            if (evalOp(&it->value, op, comparison_value)) result.push_back(0);
+    } else if (node->IsObject()) {
+        int64_t ordinal = 0;
+        for (const auto &member : node->GetObject()) {
+            const JValue &candidate = member.value;
+            const JValue *value = &candidate;
+            if (!is_self) {
+                if (!candidate.IsObject()) {
+                    ++ordinal;
+                    continue;
+                }
+
+                auto it = candidate.FindMember(member_name.getView());
+                if (it == candidate.MemberEnd()) {
+                    ++ordinal;
+                    continue;
+                }
+                value = &it->value;
+            }
+            if (evalOp(value, op, comparison_value))
+                result.push_back(ordinal);
+            ++ordinal;
         }
-    } else if (is_self)  {
+    } else if (is_self) {
         if (evalOp(node, op, comparison_value)) result.push_back(0);
     }
     return JSONUTIL_SUCCESS;
@@ -2316,8 +2383,15 @@ JsonUtilCode Selector::processAttributeFilter(const StringViewHelper &member_nam
             result.push_back(i);
         }
     } else if (node->IsObject()) {
-        if (node->FindMember(member_name.getView()) != node->MemberEnd())
-            result.push_back(0);
+        int64_t ordinal = 0;
+        for (const auto &member : node->GetObject()) {
+            const JValue &candidate = member.value;
+            if (candidate.IsObject() &&
+                candidate.FindMember(member_name.getView()) !=
+                    candidate.MemberEnd())
+                result.push_back(ordinal);
+            ++ordinal;
+        }
     } else {
         return JSONUTIL_INVALID_JSON_PATH;
     }
@@ -2344,7 +2418,7 @@ void Selector::vectorUnion(const jsn::vector<int64_t> &v, jsn::vector<int64_t> &
  */
 void Selector::vectorIntersection(const jsn::vector<int64_t> &v1, const jsn::vector<int64_t> &v2,
                                   jsn::vector<int64_t> &r) {
-    jsn::unordered_set<int> set(v2.begin(), v2.end());
+    jsn::unordered_set<int64_t> set(v2.begin(), v2.end());
     for (auto e : v1) {
         if (set.find(e) != set.end()) {
             r.push_back(e);
